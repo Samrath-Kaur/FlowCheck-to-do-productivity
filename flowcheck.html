@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlowCheck</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="flowcheckstyle.css">
+</head>
+<body onload="initApp()">
+
+<header>
+  <div class="logo">Flow<span>Check</span></div>
+  <div class="header-right">
+    <div class="header-date" id="headerDate"></div>
+    <div class="live-clock" id="liveClock"></div>
+  </div>
+</header>
+
+<div class="app">
+
+  <!-- TIMER / STOPWATCH -->
+  <div class="panel panel-timer">
+    <div class="panel-label">Focus</div>
+    <div class="timer-toggle">
+      <button class="active" id="modeTimer" onclick="switchMode('timer')">Timer</button>
+      <button id="modeStop" onclick="switchMode('stopwatch')">Stopwatch</button>
+    </div>
+
+    <!-- TIMER MODE -->
+    <div id="timerUI">
+      <div class="progress-ring">
+        <svg width="70" height="70" viewBox="0 0 90 90">
+          <circle cx="45" cy="45" r="38" fill="none" stroke="rgba(0,0,0,0.08)" stroke-width="5"/>
+          <circle id="progressCircle" cx="45" cy="45" r="38" fill="none" stroke="#c8a800" stroke-width="5"
+            stroke-dasharray="238.76" stroke-dashoffset="0" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="time-display" id="timerDisplay">25:00</div>
+      <div class="timer-input-row">
+        <input type="number" id="timerMin" value="25" min="0" max="99" placeholder="mm">
+        <label>min</label>
+        <input type="number" id="timerSec" value="0" min="0" max="59" placeholder="ss">
+        <label>sec</label>
+      </div>
+      <div class="timer-controls">
+        <button class="btn btn-primary" id="timerStartBtn" onclick="timerStartStop()">Start</button>
+        <button class="btn btn-secondary" onclick="timerReset()">Reset</button>
+      </div>
+    </div>
+
+    <!-- STOPWATCH MODE -->
+    <div id="stopwatchUI" style="display:none">
+      <div class="time-display" id="swDisplay">00:00.00</div>
+      <div class="timer-controls">
+        <button class="btn btn-primary" id="swStartBtn" onclick="swStartStop()">Start</button>
+        <button class="btn btn-secondary" onclick="swLap()" id="swLapBtn" disabled>Lap</button>
+        <button class="btn btn-secondary" onclick="swReset()">Reset</button>
+      </div>
+      <div class="lap-list" id="lapList"></div>
+    </div>
+  </div>
+
+  <!-- CALCULATOR -->
+  <div class="panel panel-calc">
+    <div class="panel-label">Calculator</div>
+    <div class="calc-display">
+      <div class="calc-expr" id="calcExpr"></div>
+      <div class="calc-val" id="calcVal">0</div>
+    </div>
+    <div class="calc-grid">
+      <button class="calc-btn clr"  onclick="calcClear()">C</button>
+      <button class="calc-btn op"   onclick="calcInput('±')">±</button>
+      <button class="calc-btn op"   onclick="calcInput('%')">%</button>
+      <button class="calc-btn op"   onclick="calcInput('/')">÷</button>
+
+      <button class="calc-btn" onclick="calcInput('7')">7</button>
+      <button class="calc-btn" onclick="calcInput('8')">8</button>
+      <button class="calc-btn" onclick="calcInput('9')">9</button>
+      <button class="calc-btn op"   onclick="calcInput('*')">×</button>
+
+      <button class="calc-btn" onclick="calcInput('4')">4</button>
+      <button class="calc-btn" onclick="calcInput('5')">5</button>
+      <button class="calc-btn" onclick="calcInput('6')">6</button>
+      <button class="calc-btn op"   onclick="calcInput('-')">−</button>
+
+      <button class="calc-btn" onclick="calcInput('1')">1</button>
+      <button class="calc-btn" onclick="calcInput('2')">2</button>
+      <button class="calc-btn" onclick="calcInput('3')">3</button>
+      <button class="calc-btn op"   onclick="calcInput('+')">+</button>
+
+      <button class="calc-btn wide" onclick="calcInput('0')">0</button>
+      <button class="calc-btn"      onclick="calcInput('.')">.</button>
+      <button class="calc-btn eq"   onclick="calcEquals()">=</button>
+    </div>
+  </div>
+
+  <!-- TO-DO -->
+  <div class="panel panel-todo">
+    <div class="todo-header">
+      <div class="todo-title">My Tasks</div>
+      <div class="todo-count" id="todoCount">0 tasks</div>
+    </div>
+    <div class="todo-input-row">
+      <input type="text" id="todoInput" placeholder="Add a new task..."
+             onkeydown="if(event.key==='Enter') addTodo()">
+      <button class="add-btn" onclick="addTodo()">+ Add</button>
+    </div>
+    <div class="todo-filters">
+      <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+      <button class="filter-btn"        onclick="setFilter('active', this)">Active</button>
+      <button class="filter-btn"        onclick="setFilter('done', this)">Done</button>
+    </div>
+    <div class="todo-list" id="todoList"></div>
+  </div>
+
+</div>
+
+<div class="notif" id="notif">⏰ Time's up!</div>
+
+<img src="flowcheck.png" alt="FlowCheck" class="logo-watermark">
+
+<script>
+// ── AUTH CHECK ──
+if (!sessionStorage.getItem('fc_loggedIn')) {
+  window.location.href = 'login.html';
+}
+
+// ── LIVE CLOCK ──
+function updateClock() {
+  const now = new Date();
+  document.getElementById('liveClock').textContent =
+    now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  document.getElementById('headerDate').textContent =
+    now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+// ── MODE SWITCH ──
+function switchMode(mode) {
+  document.getElementById('timerUI').style.display = mode === 'timer' ? 'block' : 'none';
+  document.getElementById('stopwatchUI').style.display = mode === 'stopwatch' ? 'block' : 'none';
+  document.getElementById('modeTimer').classList.toggle('active', mode === 'timer');
+  document.getElementById('modeStop').classList.toggle('active', mode === 'stopwatch');
+}
+
+// ── COUNTDOWN TIMER ──
+let timerInterval = null;
+let timerRunning = false;
+let timerTotal = 0;
+let timerRemaining = 0;
+const CIRC = 238.76;
+
+function timerStartStop() {
+  if (!timerRunning) {
+    if (timerRemaining === 0) {
+      const m = parseInt(document.getElementById('timerMin').value) || 0;
+      const s = parseInt(document.getElementById('timerSec').value) || 0;
+      timerTotal = m * 60 + s;
+      timerRemaining = timerTotal;
+    }
+    if (timerRemaining <= 0) return;
+    timerRunning = true;
+    document.getElementById('timerStartBtn').textContent = 'Pause';
+    timerInterval = setInterval(() => {
+      timerRemaining--;
+      updateTimerDisplay();
+      if (timerRemaining <= 0) {
+        clearInterval(timerInterval);
+        timerRunning = false;
+        document.getElementById('timerStartBtn').textContent = 'Start';
+        showNotif("⏰ Time's up!");
+        timerRemaining = 0;
+      }
+    }, 1000);
+  } else {
+    clearInterval(timerInterval);
+    timerRunning = false;
+    document.getElementById('timerStartBtn').textContent = 'Resume';
+  }
+}
+
+function timerReset() {
+  clearInterval(timerInterval);
+  timerRunning = false;
+  timerRemaining = 0;
+  document.getElementById('timerStartBtn').textContent = 'Start';
+  const m = parseInt(document.getElementById('timerMin').value) || 25;
+  const s = parseInt(document.getElementById('timerSec').value) || 0;
+  timerTotal = m * 60 + s;
+  document.getElementById('timerDisplay').textContent =
+    `${String(m).padStart(2,'00')}:${String(s).padStart(2,'00')}`;
+  document.getElementById('progressCircle').style.strokeDashoffset = 0;
+}
+
+function updateTimerDisplay() {
+  const m = Math.floor(timerRemaining / 60);
+  const s = timerRemaining % 60;
+  document.getElementById('timerDisplay').textContent =
+    `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  const progress = timerTotal > 0 ? (timerTotal - timerRemaining) / timerTotal : 0;
+  document.getElementById('progressCircle').style.strokeDashoffset = CIRC * (1 - progress);
+}
+
+document.getElementById('timerMin').addEventListener('change', timerReset);
+document.getElementById('timerSec').addEventListener('change', timerReset);
+
+// ── STOPWATCH ──
+let swInterval = null;
+let swRunning = false;
+let swMs = 0;
+let lapCount = 0;
+
+function swStartStop() {
+  if (!swRunning) {
+    swRunning = true;
+    document.getElementById('swStartBtn').textContent = 'Pause';
+    document.getElementById('swLapBtn').disabled = false;
+    const start = Date.now() - swMs;
+    swInterval = setInterval(() => {
+      swMs = Date.now() - start;
+      updateSwDisplay();
+    }, 10);
+  } else {
+    clearInterval(swInterval);
+    swRunning = false;
+    document.getElementById('swStartBtn').textContent = 'Resume';
+  }
+}
+
+function swLap() {
+  lapCount++;
+  const d = document.getElementById('lapList');
+  const div = document.createElement('div');
+  div.textContent = `Lap ${lapCount}  —  ${document.getElementById('swDisplay').textContent}`;
+  d.prepend(div);
+}
+
+function swReset() {
+  clearInterval(swInterval);
+  swRunning = false;
+  swMs = 0;
+  lapCount = 0;
+  document.getElementById('swDisplay').textContent = '00:00.00';
+  document.getElementById('swStartBtn').textContent = 'Start';
+  document.getElementById('swLapBtn').disabled = true;
+  document.getElementById('lapList').innerHTML = '';
+}
+
+function updateSwDisplay() {
+  const ms = Math.floor((swMs % 1000) / 10);
+  const s  = Math.floor(swMs / 1000) % 60;
+  const m  = Math.floor(swMs / 60000);
+  document.getElementById('swDisplay').textContent =
+    `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(ms).padStart(2,'0')}`;
+}
+
+// ── CALCULATOR ──
+let calcCurrent = '0';
+let calcExpression = '';
+let calcJustEqualed = false;
+
+function calcInput(val) {
+  if (val === '±') {
+    calcCurrent = calcCurrent.startsWith('-') ? calcCurrent.slice(1) : '-' + calcCurrent;
+    document.getElementById('calcVal').textContent = calcCurrent;
+    return;
+  }
+  if (val === '%') {
+    calcCurrent = String(parseFloat(calcCurrent) / 100);
+    document.getElementById('calcVal').textContent = calcCurrent;
+    return;
+  }
+  const ops = ['+', '-', '*', '/'];
+  if (ops.includes(val)) {
+    calcExpression = calcCurrent + ' ' + (val === '*' ? '×' : val === '/' ? '÷' : val) + ' ';
+    calcCurrent = '0';
+    calcJustEqualed = false;
+    document.getElementById('calcExpr').textContent = calcExpression;
+    document.getElementById('calcVal').textContent = calcCurrent;
+    return;
+  }
+  if (calcJustEqualed) { calcCurrent = ''; calcJustEqualed = false; }
+  if (val === '.') {
+    if (calcCurrent.includes('.')) return;
+    calcCurrent = (calcCurrent || '0') + '.';
+  } else {
+    calcCurrent = calcCurrent === '0' ? val : calcCurrent + val;
+  }
+  if (calcCurrent.length > 12) return;
+  document.getElementById('calcVal').textContent = calcCurrent;
+}
+
+function calcEquals() {
+  try {
+    const expr = calcExpression.replace('×', '*').replace('÷', '/') + calcCurrent;
+    const result = Function('"use strict"; return (' + expr + ')')();
+    document.getElementById('calcExpr').textContent = expr + ' =';
+    calcCurrent = String(parseFloat(result.toFixed(10)));
+    document.getElementById('calcVal').textContent = calcCurrent;
+    calcExpression = '';
+    calcJustEqualed = true;
+  } catch(e) {
+    document.getElementById('calcVal').textContent = 'Error';
+    calcCurrent = '0';
+  }
+}
+
+function calcClear() {
+  calcCurrent = '0';
+  calcExpression = '';
+  calcJustEqualed = false;
+  document.getElementById('calcVal').textContent = '0';
+  document.getElementById('calcExpr').textContent = '';
+}
+
+// ── TASKS (DB INTEGRATION) ──
+let currentFilter = 'all';
+
+async function loadTasks(filter = 'all') {
+  const user = JSON.parse(localStorage.getItem('user'));
+  if (!user) return;
+
+  try {
+    const res = await fetch(`http://localhost:3000/tasks/${user.id}`);
+    const tasks = await res.json();
+
+    const list = document.getElementById('todoList');
+    let filtered = tasks;
+    if (filter === 'active') filtered = tasks.filter(t => t.status === 'active');
+    if (filter === 'done')   filtered = tasks.filter(t => t.status === 'done');
+
+    const active = tasks.filter(t => t.status === 'active').length;
+    document.getElementById('todoCount').textContent =
+      `${active} task${active !== 1 ? 's' : ''} left`;
+
+    if (filtered.length === 0) {
+      list.innerHTML = `<div class="empty-state"><div>🌸</div>No tasks here!</div>`;
+      return;
+    }
+
+    list.innerHTML = filtered.map(t => `
+      <div class="todo-item ${t.status === 'done' ? 'done' : ''}">
+        <div class="todo-check" onclick="toggleTodo(${t.id}, '${t.status}')">${t.status === 'done' ? '✓' : ''}</div>
+        <div class="todo-text">${t.title}</div>
+        <button class="todo-del" onclick="deleteTodo(${t.id})">✕</button>
+      </div>
+    `).join('');
+  } catch (err) {
+    console.error("Load tasks error:", err);
+  }
+}
+
+async function addTodo() {
+  const user = JSON.parse(localStorage.getItem('user'));
+  const text = document.getElementById('todoInput').value.trim();
+  if (!text) return;
+
+  await fetch('http://localhost:3000/tasks', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId: user.id, title: text })
+  });
+
+  document.getElementById('todoInput').value = "";
+  loadTasks(currentFilter);
+}
+
+async function toggleTodo(id, status) {
+  const newStatus = status === 'done' ? 'active' : 'done';
+  await fetch(`http://localhost:3000/tasks/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: newStatus })
+  });
+  loadTasks(currentFilter);
+}
+
+async function deleteTodo(id) {
+  await fetch(`http://localhost:3000/tasks/${id}`, { method: 'DELETE' });
+  loadTasks(currentFilter);
+}
+
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadTasks(f);
+}
+
+function showNotif(msg) {
+  const n = document.getElementById('notif');
+  n.textContent = msg;
+  n.classList.add('show');
+  setTimeout(() => n.classList.remove('show'), 3000);
+}
+
+// ── INIT ──
+function initApp() {
+  updateClock();
+  setInterval(updateClock, 1000);
+  timerReset();
+  loadTasks();
+}
+</script>
+
+</body>
+</html>

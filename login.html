@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlowCheck — Auth Modal</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --yellow: #f9f5c2;
+      --yellow-dark: #e8e09a;
+      --yellow-text: #7a6f1a;
+      --blue: #c8d8f5;
+      --blue-dark: #a8bce8;
+      --blue-text: #1e3a6e;
+      --pink: #f7d6e8;
+      --pink-dark: #edadd1;
+      --pink-text: #7a1e50;
+      --mint: #c8f0e0;
+      --white: #fffef9;
+      --text: #2a2520;
+      --text-muted: #8a8075;
+      --radius: 20px;
+      --radius-sm: 12px;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #f0ebe2;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: var(--white);
+      border-bottom: 1.5px solid #e0d9ce;
+      padding: 0 2rem;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    .logo {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.5rem;
+      color: var(--text);
+      letter-spacing: -0.5px;
+    }
+
+    .logo span { color: #c06090; }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .live-clock, .header-date {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* ── BLURRED APP PREVIEW ── */
+    .app {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 12px;
+      padding: 12px;
+      flex: 1;
+      overflow: hidden;
+      height: calc(100vh - 56px);
+      filter: blur(3px);
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .panel {
+      border-radius: var(--radius);
+      padding: 1rem;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .panel-timer { background: var(--yellow); grid-row: 1; grid-column: 1; }
+    .panel-calc  { background: var(--blue);   grid-row: 2; grid-column: 1; }
+    .panel-todo  { background: var(--pink);   grid-row: 1 / 3; grid-column: 2; }
+
+    .panel-label {
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 0.4rem;
+      opacity: 0.55;
+      color: var(--text);
+    }
+
+    /* ── AUTH OVERLAY ── */
+    .auth-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(42, 37, 32, 0.28);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    .auth-card {
+      background: var(--white);
+      border-radius: 28px;
+      width: 400px;
+      padding: 2.2rem 2.4rem 2rem;
+      box-shadow: 0 12px 48px rgba(42, 37, 32, 0.14), 0 2px 8px rgba(42, 37, 32, 0.06);
+      animation: slideUp 0.35s cubic-bezier(0.34, 1.3, 0.64, 1);
+      position: relative;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(28px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0)   scale(1); }
+    }
+
+    .auth-logo {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.6rem;
+      color: var(--text);
+      letter-spacing: -0.5px;
+      margin-bottom: 0.2rem;
+    }
+
+    .auth-logo span { color: #c06090; }
+
+    .auth-tagline {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-bottom: 1.6rem;
+    }
+
+    /* ── TABS ── */
+    .auth-tabs {
+      display: flex;
+      background: #f0ebe2;
+      border-radius: 30px;
+      padding: 3px;
+      margin-bottom: 1.6rem;
+      width: fit-content;
+      gap: 2px;
+    }
+
+    .auth-tab {
+      border: none;
+      background: transparent;
+      padding: 7px 22px;
+      border-radius: 30px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .auth-tab.active {
+      background: var(--white);
+      color: var(--text);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+
+    /* ── FORM ── */
+    .auth-form { display: flex; flex-direction: column; gap: 12px; }
+
+    .field-group { display: flex; flex-direction: column; gap: 5px; }
+
+    .field-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .field-input {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid #e0d9ce;
+      border-radius: var(--radius-sm);
+      background: #faf8f4;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .field-input::placeholder { color: #c4bdb5; }
+    .field-input[type="date"] { color: var(--text); font-family: "DM Sans", sans-serif; }
+    .field-input:focus {
+      border-color: #c06090;
+      background: var(--white);
+    }
+
+    /* Name row side by side */
+    .name-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    /* ── SUBMIT ── */
+    .auth-submit {
+      margin-top: 4px;
+      width: 100%;
+      padding: 12px;
+      background: var(--text);
+      color: var(--white);
+      border: none;
+      border-radius: 30px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.92rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.2s;
+      letter-spacing: 0.3px;
+    }
+
+    .auth-submit:hover { opacity: 0.88; }
+    .auth-submit:active { transform: scale(0.98); }
+
+    /* ── DIVIDER ── */
+    .auth-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 4px 0;
+      color: var(--text-muted);
+      font-size: 0.72rem;
+    }
+
+    .auth-divider::before,
+    .auth-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #e0d9ce;
+    }
+
+    /* ── OAUTH ── */
+    .oauth-btn {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid #e0d9ce;
+      border-radius: var(--radius-sm);
+      background: var(--white);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .oauth-btn:hover {
+      background: #f9f7f3;
+      border-color: #d0c9bf;
+    }
+
+    .oauth-icon {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+
+    /* ── FOOTER ── */
+    .auth-footer {
+      margin-top: 1.2rem;
+      text-align: center;
+      font-size: 0.74rem;
+      color: var(--text-muted);
+    }
+
+    .auth-footer a {
+      color: #c06090;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    /* ── ERROR / SUCCESS STATES ── */
+    .field-input.error { border-color: #e06080; }
+
+    .form-error {
+      background: #fde8ed;
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      font-size: 0.78rem;
+      color: #b03055;
+      display: none;
+    }
+
+    .form-error.show { display: block; }
+
+    /* ── FORGOT PASSWORD ── */
+    .forgot-link {
+      align-self: flex-end;
+      font-size: 0.73rem;
+      color: #c06090;
+      text-decoration: none;
+      font-weight: 500;
+      margin-top: -6px;
+    }
+
+    /* ── PILL accent on card ── */
+    .auth-pill {
+      display: inline-block;
+      background: var(--yellow);
+      color: var(--yellow-text);
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin-bottom: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Flow<span>Check</span></div>
+  <div class="header-right">
+    <div class="header-date" id="headerDate"></div>
+    <div class="live-clock" id="liveClock"></div>
+  </div>
+</header>
+
+<div class="app">
+  <div class="panel panel-timer">
+    <div class="panel-label">Focus</div>
+    <div style="font-family:'DM Serif Display',serif;font-size:2.2rem;text-align:center;margin-top:1rem;color:#2a2520;letter-spacing:-1px;">25:00</div>
+  </div>
+  <div class="panel panel-calc">
+    <div class="panel-label">Calculator</div>
+    <div style="font-family:'DM Serif Display',serif;font-size:1.4rem;text-align:right;color:#2a2520;margin-top:0.5rem;">0</div>
+  </div>
+  <div class="panel panel-todo">
+    <div style="font-family:'DM Serif Display',serif;font-size:1.3rem;color:#2a2520;">My Tasks</div>
+  </div>
+</div>
+
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-card">
+
+    <div class="auth-pill">Welcome</div>
+    <div class="auth-logo">Flow<span>Check</span></div>
+    <div class="auth-tagline">Your focused workspace. Sign in to continue.</div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabLogin" onclick="switchTab('login')">Sign in</button>
+      <button class="auth-tab" id="tabSignup" onclick="switchTab('signup')">Create account</button>
+    </div>
+
+    <div class="form-error" id="formError"></div>
+
+    <div id="loginForm">
+      <div class="auth-form">
+        <div class="field-group">
+          <label class="field-label">Email</label>
+          <input class="field-input" type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Password</label>
+          <input class="field-input" type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <a href="#" class="forgot-link">Forgot password?</a>
+        <button class="auth-submit" onclick="handleLogin()">Sign in</button>
+        <div class="auth-divider">or</div>
+        <button class="oauth-btn" onclick="handleOAuth('Google')">
+          <svg class="oauth-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+          </svg>
+          Continue with Google
+        </button>
+      </div>
+    </div>
+
+    <div id="signupForm" style="display:none">
+      <div class="auth-form">
+        <div class="name-row">
+          <div class="field-group">
+            <label class="field-label">First name</label>
+            <input class="field-input" type="text" id="signupFirst" placeholder="Ada" autocomplete="given-name">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Last name</label>
+            <input class="field-input" type="text" id="signupLast" placeholder="Lovelace" autocomplete="family-name">
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Email</label>
+          <input class="field-input" type="email" id="signupEmail" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Birthday</label>
+          <input class="field-input" type="date" id="signupDob" autocomplete="bday">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Password</label>
+          <input class="field-input" type="password" id="signupPassword" placeholder="Min. 8 characters" autocomplete="new-password">
+        </div>
+        <button class="auth-submit" onclick="handleSignup()">Create account</button>
+        <div class="auth-divider">or</div>
+        <button class="oauth-btn" onclick="handleOAuth('Google')">
+          <svg class="oauth-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+          </svg>
+          Sign up with Google
+        </button>
+        <div class="auth-footer">
+          By creating an account you agree to our <a href="#">Terms</a> and <a href="#">Privacy Policy</a>.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+<script>
+  // ── LIVE CLOCK ──
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('liveClock').textContent =
+      now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    document.getElementById('headerDate').textContent =
+      now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // ── TAB SWITCH ──
+  function switchTab(tab) {
+    const isLogin = tab === 'login';
+    document.getElementById('tabLogin').classList.toggle('active', isLogin);
+    document.getElementById('tabSignup').classList.toggle('active', !isLogin);
+    document.getElementById('loginForm').style.display  = isLogin ? 'block' : 'none';
+    document.getElementById('signupForm').style.display = isLogin ? 'none'  : 'block';
+    hideError();
+  }
+
+  // ── ERROR ──
+  function showError(msg) {
+    const el = document.getElementById('formError');
+    el.textContent = msg;
+    el.classList.add('show');
+  }
+  function hideError() {
+    document.getElementById('formError').classList.remove('show');
+  }
+
+// ── LOGIN ──
+async function handleLogin() {
+  hideError();
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+
+  if (!email || !password) {
+    showError('Please fill in your email and password.');
+    return;
+  }
+  if (!email.includes('@')) {
+    showError('Please enter a valid email address.');
+    return;
+  }
+
+  try {
+    const res = await fetch('http://localhost:3000/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+
+    if (!res.ok) {
+      throw new Error(`Server error: ${res.status}`);
+    }
+
+    const result = await res.json();
+    console.log("Login response:", result);
+
+    if (result.error) {
+      showError(result.error);
+      return;
+    }
+
+    localStorage.setItem('token', result.token);
+    localStorage.setItem('user', JSON.stringify(result.user));
+    sessionStorage.setItem('fc_loggedIn', 'true');
+
+    window.location.href = 'flowcheck.html';
+  } catch (err) {
+    console.error("Login error:", err);
+    showError('Unable to connect to server.');
+  }
+}
+
+// ── SIGNUP ──
+async function handleSignup() {
+  hideError();
+  const first = document.getElementById('signupFirst').value.trim();
+  const last = document.getElementById('signupLast').value.trim();
+  const email = document.getElementById('signupEmail').value.trim();
+  const dob = document.getElementById('signupDob').value;
+  const password = document.getElementById('signupPassword').value;
+
+  if (!first || !last || !email || !dob || !password) {
+    showError('All fields are required to create an account.');
+    return;
+  }
+  if (!email.includes('@')) {
+    showError('Please enter a valid email address.');
+    return;
+  }
+  if (password.length < 8) {
+    showError('Password must be at least 8 characters.');
+    return;
+  }
+
+  try {
+    const res = await fetch('http://localhost:3000/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        firstName: first,
+        lastName: last,
+        email,
+        birthday: dob,
+        password
+      })
+    });
+
+    if (!res.ok) {
+      throw new Error(`Server error: ${res.status}`);
+    }
+
+    const result = await res.json();
+    console.log("Signup response:", result);
+
+    if (result.error) {
+      showError(result.error);
+      return;
+    }
+
+    alert(result.message || 'Signup successful!');
+    switchTab('login');
+  } catch (err) {
+    console.error("Signup error:", err);
+    showError('Unable to connect to server.');
+  }
+}
+
+  // ── ENTER KEY on inputs ──
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const loginVisible = document.getElementById('loginForm').style.display !== 'none';
+      if (loginVisible) handleLogin(); else handleSignup();
+    }
+  });
+</script>
+</body>
+</html>
